@@ -2,8 +2,9 @@
   "name": "node-pbot",
   "version": "1.0.2",
   "description": "p-bot.ru Node.js simple API",
-  "start": "test.js",
+  "main": "test.js",
   "scripts": {
+    "start": "node test.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -13,7 +14,8 @@
   "author": "Andrey Nedobylsky",
   "license": "Apache-2.0",
   "dependencies": {
-    "puppeteer": "^5.2.1"
+    "puppeteer": "^5.2.1",
+    "express": "^4.17.1"  // Добавлен express, если его еще нет в зависимостях
   },
   "keywords": [
     "bot",
