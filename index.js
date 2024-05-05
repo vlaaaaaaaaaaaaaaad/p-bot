@@ -14,7 +14,7 @@ class PBot {
      * @param botName Name for bot. Mr. Potato for ex.
      * @param lang Bot language en, ru
      */
-    constructor(botName = 'pBot', lang = 'en') {
+    constructor(botName = 'ХахБот', lang = 'ru') {
         this.botName = botName;
         this.page = null;
         this.queue = [];
