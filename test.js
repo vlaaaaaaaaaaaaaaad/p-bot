@@ -5,7 +5,7 @@ const app = express();
 const port = 3000;
 
 // Создаем экземпляр PBot
-const pBot = new PBot('лох', 'ru');
+const pBot = new PBot('ХахБот', 'ru');
 
 // Инициализируем PBot при запуске сервера
 app.listen(port, async () => {
