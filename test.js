@@ -3,28 +3,22 @@ const PBot = require('./index');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-
-// Создаем экземпляр PBot
 const pBot = new PBot('ХахБот', 'ru');
 
-// Инициализация бота
 async function initBot() {
     await pBot.init();
     console.log('Bot is initialized');
 }
 
-// Запуск сервера
 app.listen(PORT, async () => {
     await initBot();
     console.log(`Server is running on http://localhost:${PORT}`);
 });
 
-// Корневой маршрут для проверки живучести сервера
 app.get('/', (req, res) => {
     res.send("I'm alive");
 });
 
-// Маршрут для обработки POST запросов на /ask
 app.post('/ask', express.json(), async (req, res) => {
     const { text } = req.body;
     if (!text) {
@@ -39,7 +33,6 @@ app.post('/ask', express.json(), async (req, res) => {
     }
 });
 
-// Обработка сигнала остановки для корректного закрытия бота
 process.on('SIGINT', async () => {
     await pBot.destroy();
     console.log('Server stopped');
