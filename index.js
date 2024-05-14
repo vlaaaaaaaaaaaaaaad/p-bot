@@ -1,4 +1,4 @@
-const puppeteer = require('puppeteer');
+import puppeteer from 'puppeteer';
 import fetch from 'node-fetch';
 
 export class PBot {
