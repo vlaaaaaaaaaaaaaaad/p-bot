@@ -2,7 +2,6 @@
   "name": "node-pbot",
   "version": "1.0.2",
   "description": "p-bot.ru Node.js simple API",
-  "type": "module",
   "main": "test.js",
   "scripts": {
     "start": "node test.js"
@@ -10,6 +9,7 @@
   "dependencies": {
     "puppeteer": "^5.2.1",
     "express": "^4.17.1",
-    "node-fetch": "^3.3.2"
+    "node-fetch": "^3.3.2",
+    "axios": "^1.1.3"
   }
 }
