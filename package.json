@@ -15,7 +15,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "puppeteer": "^5.2.1",
-    "express": "^4.17.1"
+    "express": "^4.17.1",
     "node-fetch": "^18.20.2"
   },
   "keywords": [
