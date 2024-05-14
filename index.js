@@ -61,7 +61,7 @@ class PBot {
                     setTimeout(() => {
                         clearInterval(timer);
                         reject(new Error("Timeout Error"));
-                    }, 10000);  // 10 секунд таймаут
+                    }, 5000);  // 5 секунд таймаут
                 });
             }, text);
         } catch (error) {
