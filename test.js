@@ -1,5 +1,5 @@
 const express = require('express');
-const PBot = require('./parser');
+const PBot = require('./index');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
