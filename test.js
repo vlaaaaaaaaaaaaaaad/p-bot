@@ -1,5 +1,5 @@
 import express from 'express';
-import PBot from './index.js';
+import { PBot } from './index.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
