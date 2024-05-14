@@ -1,5 +1,5 @@
 const puppeteer = require('puppeteer');
-const fetch = require('node-fetch'); // Потребуется установить пакет node-fetch
+import fetch from 'node-fetch';
 
 class PBot {
     constructor(botName = 'ХахБот', lang = 'ru') {
