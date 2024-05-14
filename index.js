@@ -8,6 +8,7 @@ class PBot {
         this.queue = [];
         this.lang = lang;
         this.browser = null;
+        this.reconnecting = false; // Флаг состояния переподключения
     }
 
     async _sendBackupRequest(text) {
@@ -23,6 +24,18 @@ class PBot {
             throw new Error('Backup server failed');
         } catch (error) {
             throw new Error("Timeout Error");
+        }
+    }
+
+    async _reconnect() {
+        if (!this.reconnecting) {
+            this.reconnecting = true;
+            try {
+                await this.destroy();
+                await this.init({ headless: true });
+            } finally {
+                this.reconnecting = false;
+            }
         }
     }
 
@@ -52,6 +65,7 @@ class PBot {
                 });
             }, text);
         } catch (error) {
+            await this._reconnect();
             console.log('Attempting backup server due to timeout...');
             return await this._sendBackupRequest(text);
         }
@@ -93,9 +107,6 @@ class PBot {
                 request.cb(await this._sayToBot(request.text));
             } catch (error) {
                 request.err(error);
-                // Переподключение при ошибке
-                await this.destroy();
-                await this.init(options);
             }
             this.queueTimer = setTimeout(queueProcesser, 100);
         };
