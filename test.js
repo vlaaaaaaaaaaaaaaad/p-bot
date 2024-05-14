@@ -1,12 +1,17 @@
 const express = require('express');
-const { PBot, BrowserPool } = require('./index');
+const PBot = require('./index');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const browserPool = new BrowserPool(100);
-const pBot = new PBot('ХахБот', 'ru', browserPool);
+const pBot = new PBot('ХахБот', 'ru');
+
+async function initBot() {
+    await pBot.init();
+    console.log('Bot is initialized');
+}
 
 app.listen(PORT, async () => {
+    await initBot();
     console.log(`Server is running on http://localhost:${PORT}`);
 });
 
@@ -29,6 +34,7 @@ app.post('/ask', express.json(), async (req, res) => {
 });
 
 process.on('SIGINT', async () => {
+    await pBot.destroy();
     console.log('Server stopped');
     process.exit();
 });
