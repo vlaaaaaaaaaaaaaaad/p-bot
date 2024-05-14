@@ -1,30 +1,27 @@
 const express = require('express');
-const PBot = require('./index');
+const PBot = require('./parser');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const pBot = new PBot('ХахБот', 'ru');
 
-async function initBot() {
-    await pBot.init();
-    console.log('Bot is initialized');
-}
-
-app.listen(PORT, async () => {
-    await initBot();
+app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
 });
+
+app.use(express.json());
 
 app.get('/', (req, res) => {
     res.send("I'm alive");
 });
 
-app.post('/ask', express.json(), async (req, res) => {
+app.post('/ask', async (req, res) => {
     const { text } = req.body;
     if (!text) {
         return res.status(400).send('Text is required');
     }
+    const pBot = new PBot('ХахБот', 'ru');
     try {
+        await pBot.init();
         const response = await pBot.say(text);
         res.send(response);
     } catch (error) {
@@ -33,8 +30,7 @@ app.post('/ask', express.json(), async (req, res) => {
     }
 });
 
-process.on('SIGINT', async () => {
-    await pBot.destroy();
+process.on('SIGINT', () => {
     console.log('Server stopped');
     process.exit();
 });
