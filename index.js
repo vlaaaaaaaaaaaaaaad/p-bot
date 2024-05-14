@@ -1,7 +1,7 @@
 const puppeteer = require('puppeteer');
 import fetch from 'node-fetch';
 
-class PBot {
+export class PBot {
     constructor(botName = 'ХахБот', lang = 'ru') {
         this.botName = botName;
         this.lang = lang;
