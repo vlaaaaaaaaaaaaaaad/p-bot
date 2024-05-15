@@ -4,7 +4,7 @@ const PBot = require('./index');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const MAX_BROWSERS = 20; // Определите максимальное количество экземпляров браузера
+const MAX_BROWSERS = 50; // Определите максимальное количество экземпляров браузера
 const pBots = [];
 
 app.use(express.json()); // Глобальный middleware для парсинга JSON
