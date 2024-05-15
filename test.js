@@ -4,19 +4,17 @@ const PBot = require('./index');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const MAX_BROWSERS = 6; // Определите максимальное количество экземпляров браузера
+const MAX_BROWSERS = 50;
 const pBots = [];
 
-app.use(express.json()); // Глобальный middleware для парсинга JSON
-
-// Инициализация пула экземпляров браузеров
+app.use(express.json());
 async function initBots() {
     for (let i = 0; i < MAX_BROWSERS; i++) {
         const bot = new PBot('ХахБот', 'ru');
         await bot.init();
         pBots.push(bot);
     }
-    console.log('All bots are initialized');
+    console.log('Все экземпляры p-bot запущены! Запуск сервера...');
 }
 
 // Поиск доступного бота
@@ -40,7 +38,7 @@ app.post('/ask', async (req, res) => {
     }
     const bot = getAvailableBot();
     if (!bot) {
-        return res.status(503).send('All bots are currently busy. Please try again later.');
+        return res.status(503).send('Сервер перегружен. Попробуй позже!');
     }
     bot.isBusy = true;
     try {
@@ -48,17 +46,17 @@ app.post('/ask', async (req, res) => {
         res.send(response);
     } catch (error) {
         console.error('Error:', error);
-        res.status(500).send('Internal Server Error');
+        res.status(500).send('Неопознанная ошибка. Пожалуйста, свяжитесь с разработчиком в телеграм https://t.me/characterAl_BOT');
     } finally {
-        bot.isBusy = false; // Освобождаем бота после обработки запроса
+        bot.isBusy = false;
     }
 });
 
 process.on('SIGINT', async () => {
-    console.log('Shutting down the server...');
+    console.log('Остановка сервера...');
     for (const bot of pBots) {
         await bot.destroy();
     }
-    console.log('Server stopped');
+    console.log('Сервер остановлен.');
     process.exit();
 });
