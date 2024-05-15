@@ -1,4 +1,5 @@
 const express = require('express');
+const readline = require('readline');
 const PBot = require('./index');
 
 const app = express();
@@ -8,13 +9,21 @@ const MAX_BROWSERS = 50;
 const pBots = [];
 
 app.use(express.json());
+
 async function initBots() {
+    console.log('Запуск экземпляров p-bot...');
     for (let i = 0; i < MAX_BROWSERS; i++) {
         const bot = new PBot('ХахБот', 'ru');
         await bot.init();
         pBots.push(bot);
+        // Очистка текущей строки в консоли
+        readline.clearLine(process.stdout, 0);
+        readline.cursorTo(process.stdout, 0);
+        const opened = i + 1;
+        const left = MAX_BROWSERS - opened;
+        process.stdout.write(`Открыто: ${opened} экземпляров. До запуска сервера осталось открыть ${left} экземпляров.`);
     }
-    console.log('Все экземпляры p-bot запущены! Запуск сервера...');
+    console.log('\nВсе экземпляры p-bot запущены! Запуск сервера...');
 }
 
 // Поиск доступного бота
@@ -34,7 +43,7 @@ app.get('/', (req, res) => {
 app.post('/ask', async (req, res) => {
     const { text } = req.body;
     if (!text) {
-        return res.status(400).send('Text is required');
+        return res.status(400).send('Сообщение пустое. На что отвечать?');
     }
     const bot = getAvailableBot();
     if (!bot) {
