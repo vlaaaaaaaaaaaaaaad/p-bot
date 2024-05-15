@@ -2,21 +2,40 @@ const puppeteer = require('puppeteer');
 const axios = require('axios');
 
 class PBot {
-    constructor(botName = 'ХахБот', lang = 'ru') {
+    constructor(botName = 'ХахБот', lang = 'ru', poolSize = 6) {
         this.botName = botName;
-        this.browserPool = [];
-        this.queue = [];
         this.lang = lang;
+        this.poolSize = poolSize;
+        this.browserPool = [];
+        this.activeBrowsers = new Map();
         this.reconnecting = false;
-        this.initializeBrowserPool();
     }
 
-    async initializeBrowserPool() {
-        const concurrency = 6; // Количество одновременных экземпляров браузера
-        for (let i = 0; i < concurrency; i++) {
+    async init() {
+        for (let i = 0; i < this.poolSize; i++) {
             const browser = await puppeteer.launch({ headless: true });
             this.browserPool.push(browser);
         }
+    }
+
+    async getBrowser() {
+        if (this.browserPool.length > 0) {
+            return this.browserPool.pop();
+        } else {
+            // Ожидание освобождения браузера, если пул пуст
+            return new Promise(resolve => {
+                const interval = setInterval(() => {
+                    if (this.browserPool.length > 0) {
+                        clearInterval(interval);
+                        resolve(this.browserPool.pop());
+                    }
+                }, 100);
+            });
+        }
+    }
+
+    async freeBrowser(browser) {
+        this.browserPool.push(browser);
     }
 
     async _sendBackupRequest(text) {
@@ -35,24 +54,23 @@ class PBot {
         }
     }
 
-    async _reconnect() {
-        if (!this.reconnecting) {
-            this.reconnecting = true;
-            try {
-                await this.destroy();
-                await this.initializeBrowserPool();
-            } finally {
-                this.reconnecting = false;
-            }
-        }
-    }
-
-    async _sayToBot(text) {
-        let result;
-        const browser = this.browserPool.pop() || await puppeteer.launch({ headless: true });
-        const page = await browser.newPage();
+    async say(text) {
+        const browser = await this.getBrowser();
         try {
-            result = await page.evaluate((text) => {
+            const page = await browser.newPage();
+            await page.setDefaultNavigationTimeout(0);
+            switch (this.lang) {
+                case "en":
+                    await page.goto('http://p-bot.ru/en/index.html');
+                    break;
+                case "ru":
+                default:
+                    await page.goto('http://p-bot.ru/');
+            }
+
+            await page.addScriptTag({ url: 'https://code.jquery.com/jquery-3.2.1.min.js' });
+
+            const result = await page.evaluate((text) => {
                 return new Promise((resolve, reject) => {
                     $('.last_answer').text('NOTEXT');
                     $('.main_input').val(text);
@@ -71,45 +89,26 @@ class PBot {
                     setTimeout(() => {
                         clearInterval(timer);
                         reject(new Error("Timeout Error"));
-                    }, 5000);  // 5 секунд таймаут
+                    }, 5000);
                 });
             }, text);
+
+            let resultText = result.split(':')[1].trim();
+            resultText = resultText.replace(/pBot/g, this.botName);
+            resultText = resultText.replace(/ρBot/g, this.botName);
+
+            await page.close(); // Закрываем страницу после обработки запроса
+            this.freeBrowser(browser); // Возвращаем браузер в пул
+
+            return resultText;
         } catch (error) {
-            console.log('Attempting backup server due to timeout...');
-            result = await this._sendBackupRequest(text);
-        } finally {
-            await page.close();
-            this.browserPool.push(browser);
-        }
-        result = result.split(':')[1].trim();
-        result = result.replace(/pBot/g, this.botName);
-        result = result.replace(/ρBot/g, this.botName);
-        return result;
-    }
-
-    async say(text) {
-        return new Promise((resolve, reject) => {
-            this.queue.push({ text, cb: (response) => resolve(response), err: reject });
-            if (this.queue.length === 1) {
-                this.processQueue();
-            }
-        });
-    }
-
-    async processQueue() {
-        while (this.queue.length > 0) {
-            const request = this.queue.shift();
-            try {
-                const response = await this._sayToBot(request.text);
-                request.cb(response);
-            } catch (error) {
-                request.err(error);
-            }
+            console.error('Error during browser operation:', error);
+            this.freeBrowser(browser); // В случае ошибки браузер также возвращается
+            throw error;
         }
     }
 
     async destroy() {
-        this.queue = [];
         while (this.browserPool.length > 0) {
             const browser = this.browserPool.pop();
             await browser.close();
