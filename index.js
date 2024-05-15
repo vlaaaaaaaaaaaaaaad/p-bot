@@ -2,12 +2,13 @@ const puppeteer = require('puppeteer');
 const axios = require('axios');
 
 class PBot {
-    constructor(botName = 'ХахБот', lang = 'ru', maxInstances = 6) {
+    constructor(botName = 'ХахБот', lang = 'ru') {
         this.botName = botName;
-        this.instances = [];
+        this.page = null;
         this.queue = [];
         this.lang = lang;
-        this.maxInstances = maxInstances;
+        this.browser = null;
+        this.reconnecting = false; // Флаг состояния переподключения
     }
 
     async _sendBackupRequest(text) {
@@ -26,10 +27,22 @@ class PBot {
         }
     }
 
-    async _sayToBot(instance, text) {
+    async _reconnect() {
+        if (!this.reconnecting) {
+            this.reconnecting = true;
+            try {
+                await this.destroy();
+                await this.init({ headless: true });
+            } finally {
+                this.reconnecting = false;
+            }
+        }
+    }
+
+    async _sayToBot(text) {
         let result;
         try {
-            result = await instance.page.evaluate((text) => {
+            result = await this.page.evaluate((text) => {
                 return new Promise((resolve, reject) => {
                     $('.last_answer').text('NOTEXT');
                     $('.main_input').val(text);
@@ -52,7 +65,7 @@ class PBot {
                 });
             }, text);
         } catch (error) {
-            await instance.reconnect();
+            await this._reconnect();
             console.log('Attempting backup server due to timeout...');
             return await this._sendBackupRequest(text);
         }
@@ -69,81 +82,44 @@ class PBot {
     }
 
     async init(options = { headless: true }) {
-        for (let i = 0; i < this.maxInstances; i++) {
-            const browser = await puppeteer.launch(options);
-            const page = await browser.newPage();
-            await page.setDefaultNavigationTimeout(0);
-            switch (this.lang) {
-                case "en":
-                    await page.goto('http://p-bot.ru/en/index.html');
-                    break;
-                case "ru":
-                default:
-                    await page.goto('http://p-bot.ru/');
-            }
-            await page.addScriptTag({ url: 'https://code.jquery.com/jquery-3.2.1.min.js' });
+        this.browser = await puppeteer.launch(options);
+        this.page = await this.browser.newPage();
+        await this.page.setDefaultNavigationTimeout(0);
 
-            const instance = {
-                browser,
-                page,
-                async reconnect() {
-                    await this.destroy();
-                    const newBrowser = await puppeteer.launch(options);
-                    const newPage = await newBrowser.newPage();
-                    await newPage.setDefaultNavigationTimeout(0);
-                    switch (this.lang) {
-                        case "en":
-                            await newPage.goto('http://p-bot.ru/en/index.html');
-                            break;
-                        case "ru":
-                        default:
-                            await newPage.goto('http://p-bot.ru/');
-                    }
-                    await newPage.addScriptTag({ url: 'https://code.jquery.com/jquery-3.2.1.min.js' });
-                    this.browser = newBrowser;
-                    this.page = newPage;
-                },
-                async destroy() {
-                    if (this.browser) {
-                        await this.browser.close();
-                    }
-                    this.browser = null;
-                    this.page = null;
-                }
-            };
-
-            this.instances.push(instance);
+        switch (this.lang) {
+            case "en":
+                await this.page.goto('http://p-bot.ru/en/index.html');
+                break;
+            case "ru":
+            default:
+                await this.page.goto('http://p-bot.ru/');
         }
+
+        await this.page.addScriptTag({ url: 'https://code.jquery.com/jquery-3.2.1.min.js' });
 
         const queueProcesser = async () => {
             let request = this.queue.shift();
             if (!request) {
-                setTimeout(queueProcesser, 100);
+                this.queueTimer = setTimeout(queueProcesser, 100);
                 return;
             }
-
-            const availableInstance = this.instances.find(instance => instance.page);
-            if (availableInstance) {
-                try {
-                    request.cb(await this._sayToBot(availableInstance, request.text));
-                } catch (error) {
-                    request.err(error);
-                }
-            } else {
-                // No available instances, requeue request
-                this.queue.unshift(request);
+            try {
+                request.cb(await this._sayToBot(request.text));
+            } catch (error) {
+                request.err(error);
             }
-
-            setTimeout(queueProcesser, 100);
+            this.queueTimer = setTimeout(queueProcesser, 100);
         };
-
-        setTimeout(queueProcesser, 100);
+        this.queueTimer = setTimeout(queueProcesser, 100);
     }
 
     async destroy() {
-        for (const instance of this.instances) {
-            await instance.destroy();
+        clearTimeout(this.queueTimer);
+        if (this.browser) {
+            await this.browser.close();
         }
+        this.browser = null;
+        this.page = null;
     }
 }
 
