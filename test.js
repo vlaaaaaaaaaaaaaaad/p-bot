@@ -1,29 +1,22 @@
 const express = require('express');
-const readline = require('readline');
 const PBot = require('./index');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const MAX_BROWSERS = 20;
+const MAX_BROWSERS = 6; // Определите максимальное количество экземпляров браузера
 const pBots = [];
 
-app.use(express.json());
+app.use(express.json()); // Глобальный middleware для парсинга JSON
 
+// Инициализация пула экземпляров браузеров
 async function initBots() {
-    console.log('Запуск экземпляров p-bot...');
     for (let i = 0; i < MAX_BROWSERS; i++) {
         const bot = new PBot('ХахБот', 'ru');
         await bot.init();
         pBots.push(bot);
-        // Очистка текущей строки в консоли
-        readline.clearLine(process.stdout, 0);
-        readline.cursorTo(process.stdout, 0);
-        const opened = i + 1;
-        const left = MAX_BROWSERS - opened;
-        process.stdout.write(`Открыто: ${opened} экземпляров. До запуска сервера осталось открыть ${left} экземпляров.`);
     }
-    console.log('\nВсе экземпляры p-bot запущены! Запуск сервера...');
+    console.log('All bots are initialized');
 }
 
 // Поиск доступного бота
@@ -43,11 +36,11 @@ app.get('/', (req, res) => {
 app.post('/ask', async (req, res) => {
     const { text } = req.body;
     if (!text) {
-        return res.status(400).send('Сообщение пустое. На что отвечать?');
+        return res.status(400).send('Text is required');
     }
     const bot = getAvailableBot();
     if (!bot) {
-        return res.status(503).send('Сервер перегружен. Попробуй позже!');
+        return res.status(503).send('All bots are currently busy. Please try again later.');
     }
     bot.isBusy = true;
     try {
@@ -55,17 +48,17 @@ app.post('/ask', async (req, res) => {
         res.send(response);
     } catch (error) {
         console.error('Error:', error);
-        res.status(500).send('Неопознанная ошибка. Пожалуйста, свяжитесь с разработчиком в телеграм https://t.me/characterAl_BOT');
+        res.status(500).send('Internal Server Error');
     } finally {
-        bot.isBusy = false;
+        bot.isBusy = false; // Освобождаем бота после обработки запроса
     }
 });
 
 process.on('SIGINT', async () => {
-    console.log('Остановка сервера...');
+    console.log('Shutting down the server...');
     for (const bot of pBots) {
         await bot.destroy();
     }
-    console.log('Сервер остановлен.');
+    console.log('Server stopped');
     process.exit();
 });
