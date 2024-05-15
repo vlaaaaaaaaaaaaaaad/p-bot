@@ -1,5 +1,6 @@
 const express = require('express');
 const PBot = require('./index');
+const axios = require('axios');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -17,6 +18,23 @@ async function initBots() {
         pBots.push(bot);
     }
     console.log('All bots are initialized');
+}
+
+// Функция отправки резервного запроса
+async function sendBackupRequest(text) {
+    try {
+        const response = await axios.post('https://xu.su/api/send', {
+            uid: '',
+            bot: 'main',
+            text: text
+        });
+        if (response.data.ok) {
+            return response.data.text;
+        }
+        throw new Error('Backup server failed');
+    } catch (error) {
+        throw new Error("Timeout Error");
+    }
 }
 
 // Поиск доступного бота
@@ -40,7 +58,14 @@ app.post('/ask', async (req, res) => {
     }
     const bot = getAvailableBot();
     if (!bot) {
-        return res.status(503).send('All bots are currently busy. Please try again later.');
+        console.log('Attempting backup server due to timeout...');
+        try {
+            const backupResponse = await sendBackupRequest(text);
+            return res.send(backupResponse);
+        } catch (error) {
+            console.error('Backup server error:', error);
+            return res.status(500).send('Backup server failed');
+        }
     }
     bot.isBusy = true;
     try {
