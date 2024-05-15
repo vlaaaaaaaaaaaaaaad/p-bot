@@ -4,11 +4,11 @@ const axios = require('axios');
 class PBot {
     constructor(botName = 'ХахБот', lang = 'ru') {
         this.botName = botName;
-        this.page = null;
+        this.browserPool = [];
         this.queue = [];
         this.lang = lang;
-        this.browser = null;
-        this.reconnecting = false; // Флаг состояния переподключения
+        this.reconnecting = false;
+        this.initializeBrowserPool();
     }
 
     async _sendBackupRequest(text) {
@@ -81,9 +81,18 @@ class PBot {
         });
     }
 
+    async initializeBrowserPool() {
+        const concurrency = 6; // Количество одновременных экземпляров браузера
+        for (let i = 0; i < concurrency; i++) {
+            const browser = await puppeteer.launch({ headless: true });
+            this.browserPool.push(browser);
+        }
+    }
+
     async init(options = { headless: true }) {
-        this.browser = await puppeteer.launch(options);
-        this.page = await this.browser.newPage();
+        const browser = this.browserPool.pop(); // Берем экземпляр браузера из пула
+        this.browser = browser;
+        this.page = await browser.newPage();
         await this.page.setDefaultNavigationTimeout(0);
 
         switch (this.lang) {
@@ -117,9 +126,9 @@ class PBot {
         clearTimeout(this.queueTimer);
         if (this.browser) {
             await this.browser.close();
+            this.browser = null;
+            this.page = null;
         }
-        this.browser = null;
-        this.page = null;
     }
 }
 
