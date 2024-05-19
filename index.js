@@ -1,12 +1,28 @@
 const puppeteer = require('puppeteer');
+const genericPool = require('generic-pool');
 
 class PBot {
     constructor(botName = 'ХахБот', lang = 'ru') {
         this.botName = botName;
         this.lang = lang;
+
+        this.browserPool = genericPool.createPool({
+            create: async () => {
+                const browser = await puppeteer.launch({ headless: true });
+                return browser;
+            },
+            destroy: async (browser) => {
+                await browser.close();
+            }
+        }, {
+            max: 50, // Максимальное количество браузеров в пуле
+            min: 2 // Минимальное количество браузеров в пуле
+        });
     }
 
     async _sayToBot(page, text) {
+        await page.addScriptTag({ url: 'https://code.jquery.com/jquery-3.2.1.min.js' });
+
         let result = await page.evaluate((text) => {
             return new Promise((resolve, reject) => {
                 $('.last_answer').text('NOTEXT');
@@ -29,6 +45,7 @@ class PBot {
                 }, 10000);  // 10 секунд таймаут
             });
         }, text);
+
         result = result.split(':')[1].trim();
         result = result.replace(/pBot/g, this.botName);
         result = result.replace(/ρBot/g, this.botName);
@@ -36,32 +53,29 @@ class PBot {
     }
 
     async say(text) {
-        const browser = await puppeteer.launch({ headless: true });
+        const browser = await this.browserPool.acquire();
         const page = await browser.newPage();
         await page.setDefaultNavigationTimeout(0);
 
-        switch (this.lang) {
-            case "en":
-                await page.goto('http://p-bot.ru/en/index.html');
-                break;
-            case "ru":
-            default:
-                await page.goto('http://p-bot.ru/');
-        }
-
-        await page.addScriptTag({ url: 'https://code.jquery.com/jquery-3.2.1.min.js' });
-
-        let response;
         try {
-            response = await this._sayToBot(page, text);
-        } catch (error) {
-            console.error('Error during bot communication:', error);
-            throw error;
-        } finally {
-            await browser.close();
-        }
+            switch (this.lang) {
+                case "en":
+                    await page.goto('http://p-bot.ru/en/index.html');
+                    break;
+                case "ru":
+                default:
+                    await page.goto('http://p-bot.ru/');
+            }
 
-        return response;
+            const response = await this._sayToBot(page, text);
+            await page.close();
+            this.browserPool.release(browser);
+            return response;
+        } catch (error) {
+            await page.close();
+            this.browserPool.release(browser);
+            throw error;
+        }
     }
 }
 
