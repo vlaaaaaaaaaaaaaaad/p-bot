@@ -27,7 +27,7 @@ app.post('/ask', express.json(), async (req, res) => {
     }
 });
 
-process.on('SIGINT', async () => {
+process.on('SIGINT', () => {
     console.log('Server stopped');
     process.exit();
 });
