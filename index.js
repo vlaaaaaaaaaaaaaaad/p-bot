@@ -1,18 +1,16 @@
 const puppeteer = require('puppeteer');
 
 class PBot {
-    constructor(botName = 'ХахБот', lang = 'ru', browserCount = 20) {
+    constructor(botName = 'ХахБот', lang = 'ru') {
         this.botName = botName;
-        this.lang = lang;
-        this.browsers = [];
-        this.pages = [];
+        this.page = null;
         this.queue = [];
-        this.browserCount = browserCount;
-        this.initPromise = this.init();
+        this.lang = lang;
+        this.browser = null;
     }
 
-    async _sayToBot(page, text) {
-        let result = await page.evaluate((text) => {
+    async _sayToBot(text) {
+        let result = await this.page.evaluate((text) => {
             return new Promise((resolve, reject) => {
                 $('.last_answer').text('NOTEXT');
                 $('.main_input').val(text);
@@ -31,7 +29,7 @@ class PBot {
                 setTimeout(() => {
                     clearInterval(timer);
                     reject(new Error("Timeout Error"));
-                }, 30000);  // 30 секунд таймаут
+                }, 10000);  // 10 секунд таймаут
             });
         }, text);
         result = result.split(':')[1].trim();
@@ -41,78 +39,53 @@ class PBot {
     }
 
     async say(text) {
-        const page = await this.getFreePage();
-        if (!page) {
-            return new Promise((resolve, reject) => {
-                this.queue.push({ text, cb: resolve, err: reject });
-            });
-        }
-        try {
-            const response = await this._sayToBot(page, text);
-            this.releasePage(page);
-            return response;
-        } catch (error) {
-            this.releasePage(page);
-            throw error;
-        }
+        return new Promise((resolve, reject) => {
+            this.queue.push({ text, cb: (response) => resolve(response), err: reject });
+        });
     }
 
-    async init() {
-        for (let i = 0; i < this.browserCount; i++) {
-            const browser = await puppeteer.launch({ headless: true });
-            const page = await browser.newPage();
-            await page.setDefaultNavigationTimeout(0);
-            switch (this.lang) {
-                case "en":
-                    await page.goto('http://p-bot.ru/en/index.html');
-                    break;
-                case "ru":
-                default:
-                    await page.goto('http://p-bot.ru/');
-            }
-            await page.addScriptTag({ url: 'https://code.jquery.com/jquery-3.2.1.min.js' });
-            this.browsers.push(browser);
-            this.pages.push(page);
-        }
+    async init(options = { headless: true }) {
+        this.browser = await puppeteer.launch(options);
+        this.page = await this.browser.newPage();
+        await this.page.setDefaultNavigationTimeout(0);
 
-        this.queueProcesser();
-    }
-
-    async getFreePage() {
-        return this.pages.shift() || null;
-    }
-
-    releasePage(page) {
-        this.pages.push(page);
-        this.queueProcesser();
-    }
-
-    async queueProcesser() {
-        while (this.queue.length > 0 && this.pages.length > 0) {
-            const request = this.queue.shift();
-            const page = await this.getFreePage();
-            if (page) {
-                try {
-                    const response = await this._sayToBot(page, request.text);
-                    this.releasePage(page);
-                    request.cb(response);
-                } catch (error) {
-                    this.releasePage(page);
-                    request.err(error);
-                }
-            } else {
-                this.queue.unshift(request);
+        switch (this.lang) {
+            case "en":
+                await this.page.goto('http://p-bot.ru/en/index.html');
                 break;
-            }
+            case "ru":
+            default:
+                await this.page.goto('http://p-bot.ru/');
         }
+
+        await this.page.addScriptTag({ url: 'https://code.jquery.com/jquery-3.2.1.min.js' });
+
+        const queueProcesser = async () => {
+            let request = this.queue.shift();
+            if (!request) {
+                this.queueTimer = setTimeout(queueProcesser, 100);
+                return;
+            }
+            try {
+                request.cb(await this._sayToBot(request.text));
+            } catch (error) {
+                request.err(error);
+                // Переподключение при ошибке
+                await this.destroy();
+                await this.init(options);
+            }
+            this.queueTimer = setTimeout(queueProcesser, 100);
+        };
+        this.queueTimer = setTimeout(queueProcesser, 100);
     }
 
     async destroy() {
-        for (const browser of this.browsers) {
-            await browser.close();
+        clearTimeout(this.queueTimer);
+        if (this.browser) {
+            await this.browser.close();
         }
-        this.browsers = [];
-        this.pages = [];
+        this.browser = null;
+        this.page = null;
     }
 }
 
