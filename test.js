@@ -3,10 +3,10 @@ const PBot = require('./index');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const pBot = new PBot('ХахБот', 'ru', 20);
+const pBot = new PBot('ХахБот', 'ru');
 
 async function initBot() {
-    await pBot.initPromise;
+    await pBot.init();
     console.log('Bot is initialized');
 }
 
