@@ -2,12 +2,13 @@
   "name": "node-pbot",
   "version": "1.0.2",
   "description": "p-bot.ru Node.js simple API",
-  "main": "test.js",
+  "main": "server.js",
   "scripts": {
-    "start": "node test.js"
+    "start": "node server.js"
   },
   "dependencies": {
     "puppeteer": "^5.2.1",
-    "express": "^4.17.1"
+    "express": "^4.17.1",
+    "generic-pool": "^3.8.2"
   }
 }
